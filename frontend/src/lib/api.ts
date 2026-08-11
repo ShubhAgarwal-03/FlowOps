@@ -10,7 +10,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// bounce to login on auth failure, anywhere in the app
 api.interceptors.response.use(
   (res) => res,
   (err) => {

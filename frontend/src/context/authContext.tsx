@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { api } from '../lib/api';
+import { Role } from '../types';
 
-type Role = 'ADMIN' | 'SALES' | 'WAREHOUSE' | 'ACCOUNTS';
 interface User { id: string; name: string; email: string; role: Role }
-
 interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;

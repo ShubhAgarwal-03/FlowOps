@@ -24,9 +24,15 @@ export function ChallanBuilder() {
   const [challanNumber, setChallanNumber] = useState('');
 
   useEffect(() => {
-    api.get('/customers', { params: { limit: 100 } }).then((res) => setCustomers(res.data.items));
-    api.get('/products', { params: { limit: 200 } }).then((res) => setProducts(res.data.items));
-  }, []);
+  api.get('/customers', { params: { limit: 100 } })
+    .then((res) => setCustomers(res.data.items))
+    .catch(() => setError('Failed to load customers'));
+  api.get('/products', { params: { limit: 100 } })
+    .then((res) => setProducts(res.data.items))
+    .catch(() => setError('Failed to load products'));
+}, []);
+  
+
 
   useEffect(() => {
     if (!id) return;

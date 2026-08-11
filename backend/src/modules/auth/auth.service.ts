@@ -11,9 +11,11 @@ export async function login(email: string, password: string) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw ApiError.unauthorized('Invalid email or password');
 
-  const token = jwt.sign({ id: user.id, role: user.role }, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn,
-  });
+  const token = jwt.sign(
+  { id: user.id, role: user.role },
+  env.jwtSecret,
+  { expiresIn: env.jwtExpiresIn as jwt.SignOptions['expiresIn'] }
+);
 
   return {
     token,

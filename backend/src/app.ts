@@ -6,6 +6,7 @@ import { productRouter } from './modules/products/product.routes';
 import { inventoryRouter } from './modules/inventory/movement.routes';
 import { challanRouter } from './modules/challans/challan.routes';
 import { errorHandler } from './middleware/error-handler';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 
 export const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth', authRouter);
+app.use('/dashboard', dashboardRouter);
 app.use('/customers', customerRouter);
 app.use('/products', productRouter);
 app.use('/inventory', inventoryRouter);

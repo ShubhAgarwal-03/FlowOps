@@ -4,6 +4,7 @@ import { Users, Package, AlertTriangle, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 import { KpiCard } from '../components/kpiCard';
 import { StatusBadge } from '../components/statusBadge';
+import { SalesOverviewChart } from '../components/salesOverviewChart';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Challan, Product } from '../types';
 
@@ -13,21 +14,24 @@ export function Dashboard() {
   const [challanCount, setChallanCount] = useState(0);
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [recentChallans, setRecentChallans] = useState<Challan[]>([]);
+  const [salesOverview, setSalesOverview] = useState<{ date: string; label: string; total: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [customers, products, challans, lowStockRes] = await Promise.all([
+      const [customers, products, challans, lowStockRes, overview] = await Promise.all([
         api.get('/customers', { params: { limit: 1 } }),
         api.get('/products', { params: { limit: 1 } }),
         api.get('/challans', { params: { limit: 5 } }),
         api.get('/products', { params: { lowStock: true, limit: 5 } }),
+        api.get('/dashboard/sales-overview'),
       ]);
       setCustomerCount(customers.data.total);
       setProductCount(products.data.total);
       setChallanCount(challans.data.total);
       setRecentChallans(challans.data.items);
       setLowStock(lowStockRes.data.items);
+      setSalesOverview(overview.data);
       setLoading(false);
     }
     load();
@@ -47,41 +51,10 @@ export function Dashboard() {
         <KpiCard label="Total Challans" value={challanCount} icon={<FileText className="w-4 h-4" />} accent="amber" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800 text-sm">Recent Challans</h2>
-            <Link to="/challans" className="text-xs text-indigo-600">View all</Link>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
-                <th className="px-5 py-2 font-medium">Challan #</th>
-                <th className="px-5 py-2 font-medium">Customer</th>
-                <th className="px-5 py-2 font-medium">Date</th>
-                <th className="px-5 py-2 font-medium">Qty</th>
-                <th className="px-5 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentChallans.map((c) => (
-                <tr key={c.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                  <td className="px-5 py-3">
-                    <Link to={`/challans/${c.id}`} className="text-indigo-600 font-medium">{c.challanNumber}</Link>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">{c.customer?.name}</td>
-                  <td className="px-5 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
-                  <td className="px-5 py-3 text-slate-600">{c.totalQuantity}</td>
-                  <td className="px-5 py-3"><StatusBadge status={c.status} /></td>
-                </tr>
-              ))}
-              {recentChallans.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-6 text-center text-slate-400">No challans yet</td></tr>
-              )}
-            </tbody>
-          </table>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="col-span-2">
+          <SalesOverviewChart data={salesOverview} />
         </div>
-
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
           <div className="px-5 py-4 border-b border-slate-100">
             <h2 className="font-semibold text-slate-800 text-sm">Low Stock</h2>
@@ -99,6 +72,38 @@ export function Dashboard() {
             {lowStock.length === 0 && <div className="px-5 py-6 text-center text-slate-400 text-sm">All stock healthy</div>}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-800 text-sm">Recent Challans</h2>
+          <Link to="/challans" className="text-xs text-indigo-600">View all</Link>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+              <th className="px-5 py-2 font-medium">Challan #</th>
+              <th className="px-5 py-2 font-medium">Customer</th>
+              <th className="px-5 py-2 font-medium">Date</th>
+              <th className="px-5 py-2 font-medium">Qty</th>
+              <th className="px-5 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentChallans.map((c) => (
+              <tr key={c.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                <td className="px-5 py-3"><Link to={`/challans/${c.id}`} className="text-indigo-600 font-medium">{c.challanNumber}</Link></td>
+                <td className="px-5 py-3 text-slate-600">{c.customer?.name}</td>
+                <td className="px-5 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
+                <td className="px-5 py-3 text-slate-600">{c.totalQuantity}</td>
+                <td className="px-5 py-3"><StatusBadge status={c.status} /></td>
+              </tr>
+            ))}
+            {recentChallans.length === 0 && (
+              <tr><td colSpan={5} className="px-5 py-6 text-center text-slate-400">No challans yet</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

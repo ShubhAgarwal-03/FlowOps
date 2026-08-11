@@ -24,10 +24,13 @@ export function ProductList() {
 
   const canManage = user?.role === 'ADMIN' || user?.role === 'WAREHOUSE';
 
+  const [totalValue, setTotalValue] = useState(0);
+
   async function load() {
     const { data } = await api.get('/products', { params: { search: search || undefined, lowStock: lowStockOnly || undefined, page, limit } });
     setItems(data.items);
     setTotal(data.total);
+    setTotalValue(data.totalValue);
   }
 
   useEffect(() => { load(); }, [page, search, lowStockOnly]);
@@ -49,7 +52,7 @@ export function ProductList() {
       <div className="grid grid-cols-3 gap-4 mb-4">
         <KpiCard label="Total Products" value={total} accent="slate" />
         <KpiCard label="Low Stock Alerts" value={lowStockCount} accent="red" />
-        <KpiCard label="Page" value={`${page}`} accent="indigo" />
+        <KpiCard label="Total Value" value={formatCurrency(totalValue)} accent="indigo" />
       </div>
 
       <div className="flex gap-3 mb-4">

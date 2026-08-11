@@ -33,7 +33,11 @@ export async function listProducts(params: {
     items = items.filter((p) => p.currentStock <= p.minStock);
   }
 
-  return { items, total, page: params.page, limit: params.limit };
+  // total inventory value across ALL matching products, not just this page
+  const allMatching = await prisma.product.findMany({ where, select: { unitPrice: true, currentStock: true } });
+  const totalValue = allMatching.reduce((sum, p) => sum + Number(p.unitPrice) * p.currentStock, 0);
+
+  return { items, total, page: params.page, limit: params.limit, totalValue };
 }
 
 export async function getProduct(id: string) {

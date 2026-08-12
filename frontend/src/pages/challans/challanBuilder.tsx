@@ -31,6 +31,8 @@ export function ChallanBuilder() {
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [itemSearch, setItemSearch] = useState('');
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState<'draft' | 'confirm' | null>(null);
@@ -41,8 +43,12 @@ export function ChallanBuilder() {
   const customerSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api.get('/customers', { params: { limit: 100 } }).then((res) => setCustomers(res.data.items));
-    api.get('/products', { params: { limit: 200 } }).then((res) => setProducts(res.data.items));
+    api.get('/customers', { params: { limit: 100 } })
+      .then((res) => setCustomers(res.data.items))
+      .catch(() => setError('Failed to load customers'));
+    api.get('/products', { params: { limit: 100 } })
+      .then((res) => setProducts(res.data.items))
+      .catch(() => setError('Failed to load products'));
   }, []);
 
   useEffect(() => {
@@ -75,14 +81,38 @@ export function ChallanBuilder() {
     return customers.filter((c) => (c.name ?? '').toLowerCase().includes(q) || (c.mobile ?? '').includes(q)).slice(0, 6);
   }, [customerSearch, customers]);
 
-  // browse mode when the box is empty, filtered results once the user types
+  // debounced server-side search — the first 100 products are only a "browse" cache;
+  // catalogs bigger than that need a real query against the backend to be found
+  useEffect(() => {
+    const q = itemSearch.trim();
+    if (!q) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    const handle = setTimeout(() => {
+      api.get('/products', { params: { search: q, limit: 20 } })
+        .then((res) => {
+          setSearchResults(res.data.items);
+          // cache anything we find so productById can resolve it later even if it
+          // wasn't in the initial 100-item preload
+          setProducts((prev) => {
+            const known = new Set(prev.map((p) => p.id));
+            const fresh = res.data.items.filter((p: Product) => !known.has(p.id));
+            return fresh.length ? [...prev, ...fresh] : prev;
+          });
+        })
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [itemSearch]);
+
+  // browse mode (empty box) shows the local cache; a typed query shows live server results
   const filteredProducts = useMemo(() => {
-    const q = itemSearch.trim().toLowerCase();
-    const pool = q
-      ? products.filter((p) => (p.name ?? '').toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q))
-      : products;
-    return pool.slice(0, 8);
-  }, [itemSearch, products]);
+    if (!itemSearch.trim()) return products.slice(0, 8);
+    return searchResults ?? [];
+  }, [itemSearch, products, searchResults]);
 
   function selectCustomer(c: Customer) {
     setCustomerId(c.id);
@@ -249,7 +279,9 @@ export function ChallanBuilder() {
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto">
-                    {filteredProducts.length > 0 ? (
+                    {searching ? (
+                      <div className="px-3 py-4 text-sm text-slate-400 text-center">Searching…</div>
+                    ) : filteredProducts.length > 0 ? (
                       filteredProducts.map((p) => {
                         const alreadyIn = lines.some((l) => l.productId === p.id);
                         return (

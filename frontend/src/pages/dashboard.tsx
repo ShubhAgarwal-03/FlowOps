@@ -7,8 +7,10 @@ import { StatusBadge } from '../components/statusBadge';
 import { SalesOverviewChart } from '../components/salesOverviewChart';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Challan, Product } from '../types';
+import { useAuth } from '../context/authContext';
 
 export function Dashboard() {
+  const { user } = useAuth();
   const [customerCount, setCustomerCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const [challanCount, setChallanCount] = useState(0);
@@ -17,25 +19,35 @@ export function Dashboard() {
   const [salesOverview, setSalesOverview] = useState<{ date: string; label: string; total: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const canSeeCustomers = user && ['ADMIN', 'SALES', 'ACCOUNTS'].includes(user.role);
+
   useEffect(() => {
     async function load() {
-      const [customers, products, challans, lowStockRes, overview] = await Promise.all([
-        api.get('/customers', { params: { limit: 1 } }),
+      const results = await Promise.allSettled([
+        canSeeCustomers ? api.get('/customers', { params: { limit: 1 } }) : Promise.resolve(null),
         api.get('/products', { params: { limit: 1 } }),
         api.get('/challans', { params: { limit: 5 } }),
         api.get('/products', { params: { lowStock: true, limit: 5 } }),
         api.get('/dashboard/sales-overview'),
       ]);
-      setCustomerCount(customers.data.total);
-      setProductCount(products.data.total);
-      setChallanCount(challans.data.total);
-      setRecentChallans(challans.data.items);
-      setLowStock(lowStockRes.data.items);
-      setSalesOverview(overview.data);
+
+      const [customersRes, productsRes, challansRes, lowStockRes, overviewRes] = results;
+
+      if (customersRes.status === 'fulfilled' && customersRes.value) {
+        setCustomerCount(customersRes.value.data.total);
+      }
+      if (productsRes.status === 'fulfilled') setProductCount(productsRes.value.data.total);
+      if (challansRes.status === 'fulfilled') {
+        setChallanCount(challansRes.value.data.total);
+        setRecentChallans(challansRes.value.data.items);
+      }
+      if (lowStockRes.status === 'fulfilled') setLowStock(lowStockRes.value.data.items);
+      if (overviewRes.status === 'fulfilled') setSalesOverview(overviewRes.value.data);
+
       setLoading(false);
     }
     load();
-  }, []);
+  }, [canSeeCustomers]);
 
   if (loading) return <div className="text-slate-400 text-sm">Loading dashboard…</div>;
 
@@ -45,7 +57,9 @@ export function Dashboard() {
       <p className="text-sm text-slate-500 mb-6">Real-time snapshot across CRM, inventory, and sales.</p>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <KpiCard label="Total Customers" value={customerCount} icon={<Users className="w-4 h-4" />} accent="indigo" />
+        {canSeeCustomers && (
+          <KpiCard label="Total Customers" value={customerCount} icon={<Users className="w-4 h-4" />} accent="indigo" />
+        )}
         <KpiCard label="Total Products" value={productCount} icon={<Package className="w-4 h-4" />} accent="slate" />
         <KpiCard label="Low Stock Alerts" value={lowStock.length} icon={<AlertTriangle className="w-4 h-4" />} accent="red" sublabel={lowStock.length > 0 ? 'Requires reorder' : undefined} />
         <KpiCard label="Total Challans" value={challanCount} icon={<FileText className="w-4 h-4" />} accent="amber" />

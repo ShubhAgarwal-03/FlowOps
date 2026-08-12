@@ -6,10 +6,14 @@ function required(key: string): string {
   return value;
 }
 
-
+function parsePort(): number {
+  const raw = process.env.PORT;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 4000;
+}
 
 export const env = {
-  port: Number(process.env.PORT ?? 4000),
+  port: parsePort(),
   databaseUrl: required('DATABASE_URL'),
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '8h',
